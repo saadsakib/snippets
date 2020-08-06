@@ -1,0 +1,6 @@
+# ignore everything
+*
+
+# but not shell files and .gitignore
+!*.sh
+!.gitignore
