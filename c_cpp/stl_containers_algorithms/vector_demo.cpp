@@ -3,8 +3,8 @@
 
 using namespace std;
 
-template <class T> 
-void print_vector(vector<T> v) {
+template <class C, class T> 
+void print_container(C v) {
     for (T elem : v) {
         cout << elem << " ";
     }
@@ -44,7 +44,7 @@ void insert_delete_demo () {
     p = vc.begin();
     p += 2;
     vc.erase(p, p+5); // remove 5 elements, size decreased by 5
-    print_vector(vc);
+    print_container<vector<char>, char>(vc);
 }
 
 int main () {
@@ -58,7 +58,7 @@ int main () {
 
     cout << "Size = " << v_num.size() << endl;
 
-    print_vector(iv2);
+    print_container<vector<char>, char>(iv2);
 
     cout << "itr_demo" << endl;
     itr_demo();
