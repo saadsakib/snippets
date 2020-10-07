@@ -2,17 +2,27 @@
 #include <math.h> 
   
 #define N 8 
+#define QUEEN 1
+#define EMPTY 0
 using namespace std; 
 
 // The following definitions are used: 
 //
 // State – A state here in this context is any configuration of the N queens on
 // the N X N board. To reduce the search space, only a single queen in a
-// particular column is considered. A state is an array of length N.
+// particular column is considered. A queen can move only in y-axis. A state is
+// an array of length N.
 //
-// Neighbours – Neighbours of a state are other states with board
-// configuration that differ from the current state’s board configuration with
-// respect to the position of only a single queen.
+// Neighbours – Neighbours of a state are other states with board configuration
+// that differ from the current state’s board configuration by  moving a single
+// queen columnwise.
+//
+// Objective = pairs of queens attacking each other
+// 
+// In the following, 
+// i = column # / x-coordinate
+// state[i] / j = row # / y-coordinate
+
 
 // Originally posted:
 // https://www.geeksforgeeks.org/n-queen-problem-local-search-using-hill-climbing-with-random-neighbour/
@@ -68,8 +78,6 @@ void fill(int board[][N], int value) {
     } 
 } 
   
-// This function calculates the objective value of the state(queens attacking
-// each other) using the board by the following logic. 
 int calculateObjective(int board[][N], int* state) { 
     // For each queen in a column, we check for other queens falling in the line
     // of our current queen and if found, any, then we increment the variable
@@ -82,29 +90,21 @@ int calculateObjective(int board[][N], int* state) {
     int row, col; 
   
     for (int i = 0; i < N; i++) { 
-  
-        // At each column 'i', the queen is placed at row 'state[i]', by the
-        // definition of our state. 
-  
         // To the left of same row (row remains constant and col decreases) 
         row = state[i], col = i - 1; 
-        while (col >= 0 
-               && board[row][col] != 1) { 
+        while (col >= 0 && board[row][col] != QUEEN) { 
             col--; 
         } 
-        if (col >= 0 
-            && board[row][col] == 1) { 
+        if (col >= 0 && board[row][col] == QUEEN) { 
             attacking++; 
         } 
   
         // To the right of same row (row remains constant and col increases) 
         row = state[i], col = i + 1; 
-        while (col < N 
-               && board[row][col] != 1) { 
+        while (col < N && board[row][col] != 1) { 
             col++; 
         } 
-        if (col < N 
-            && board[row][col] == 1) { 
+        if (col < N && board[row][col] == 1) { 
             attacking++; 
         } 
   
@@ -178,13 +178,13 @@ void copyState(int* state1, int* state2) {
   
 // Gets the neighbour of the current state having the least objective value
 // amongst all neighbours as well as the current state. 
-void getNeighbour(int board[][N], int* state) { 
-    // Declaring and initializing the optimal board and state with the current
-    // board and the state as the starting point. 
-    int opBoard[N][N]; 
+void getOptimalNeighbour(int board[][N], int* state) { 
+    // Optimal board and state; ultimately copied to board and state
+    // parameters. 
     int opState[N]; 
-  
     copyState(opState, state); 
+    
+    int opBoard[N][N]; 
     generateBoard(opBoard, opState); 
   
     // Initializing the optimal objective value 
@@ -192,37 +192,32 @@ void getNeighbour(int board[][N], int* state) {
   
     // Declaring and initializing the temporary board and state for the purpose
     // of computation. 
-    int NeighbourBoard[N][N]; 
-    int NeighbourState[N]; 
+    int tempBoard[N][N]; 
+    int tempState[N]; 
   
-    copyState(NeighbourState, state); 
-    generateBoard(NeighbourBoard, NeighbourState); 
+    copyState(tempState, state); 
+    generateBoard(tempBoard, tempState); 
   
-    // Iterating through all possible neighbours of the board. 
+    // Iterating through all possible neighbours.
     for (int i = 0; i < N; i++) { 
         for (int j = 0; j < N; j++) { 
-            // Condition for skipping the current state 
+            // Consider a neighbour
             if (j != state[i]) { 
-                // Initializing temporary neighbour with the current neighbour. 
-                NeighbourState[i] = j; 
-                NeighbourBoard[NeighbourState[i]][i] = 1; 
-                NeighbourBoard[state[i]][i]  = 0; 
-                // Calculating the objective value of the neighbour. 
-                int temp = calculateObjective(NeighbourBoard, NeighbourState); 
-  
-                // Comparing temporary and optimal neighbour objectives and if
-                // temporary is less than optimal then updating accordingly. 
-                if (temp <= opObjective) { 
-                    opObjective = temp; 
-                    copyState(opState, NeighbourState); 
+                tempState[i] = j; 
+                tempBoard[j][i] = QUEEN; 
+                tempBoard[state[i]][i]  = EMPTY; 
+                
+                int tempObjective = calculateObjective(tempBoard, tempState); 
+                if (tempObjective <= opObjective) { 
+                    opObjective = tempObjective; 
+                    copyState(opState, tempState); 
                     generateBoard(opBoard, opState); 
                 } 
   
-                // Going back to the original configuration for the next
-                // iteration. 
-                NeighbourBoard[NeighbourState[i]][i] = 0; 
-                NeighbourState[i] = state[i]; 
-                NeighbourBoard[state[i]][i] = 1; 
+                // Re-positioning current column's queen. 
+                tempBoard[tempState[i]][i] = EMPTY; 
+                tempState[i] = state[i]; 
+                tempBoard[state[i]][i] = QUEEN; 
             } 
         } 
     } 
@@ -236,23 +231,15 @@ void getNeighbour(int board[][N], int* state) {
 } 
   
 void hillClimbing(int board[][N], int* state) { 
-    // Declaring  and initializing the neighbour board and state with the
-    // current board and the state as the starting point. 
-  
+    // variables for storing the optimal neighbour 
     int neighbourBoard[N][N] = {}; 
     int neighbourState[N]; 
   
     copyState(neighbourState, state); 
     generateBoard(neighbourBoard, neighbourState); 
   
-    do { 
-        // Copying the neighbour board and state to the current board and state,
-        // since a neighbour becomes current after the jump. 
-        copyState(state, neighbourState); 
-        generateBoard(board, state); 
-  
-        // Getting the optimal neighbour 
-        getNeighbour(neighbourBoard, neighbourState); 
+    while (true) { 
+        getOptimalNeighbour(neighbourBoard, neighbourState); 
   
         if (compareStates(state, neighbourState)) { 
             // no optimal neighbour exists 
@@ -267,7 +254,9 @@ void hillClimbing(int board[][N], int* state) {
             neighbourState[rand() % N] = rand() % N; 
             generateBoard(neighbourBoard, neighbourState); 
         } 
-    } while (true); 
+        copyState(state, neighbourState); 
+        generateBoard(board, state); 
+    }  
 } 
  
 int main() { 
